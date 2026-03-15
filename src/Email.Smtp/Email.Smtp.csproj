@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Email.Smtp</RootNamespace>
+    <PackageId>Email.Smtp</PackageId>
+    <Description>SMTP email service using MailKit with code-based HTML templates. Works with Mailpit (dev), Postal (self-hosted), or any SMTP server.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Email.Abstractions" Version="1.0.0" />
+    <PackageReference Include="Identity.Abstractions" Version="1.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.15.1" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Templates\*.html" />
+  </ItemGroup>
+
+</Project>
