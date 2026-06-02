@@ -38,20 +38,28 @@ public class SmtpEmailService : IEmailService
       var mimeMessage = BuildMimeMessage(message);
       await SendViaSmtpAsync(mimeMessage, cancellationToken);
 
+      // "email_sent" is the cross-producer observability contract: a stable,
+      // greppable token queryable in Loki/Grafana across every service that
+      // sends mail (LogQL: |= "email_sent"). The producer comes from the Loki
+      // service_name label; messageId enables correlation with the mail
+      // server's own delivery log. Do not reword the leading token.
       _logger.LogInformation(
-        "Email sent successfully to {Recipient} with subject '{Subject}'",
+        "email_sent to={Recipient} subject={Subject} messageId={MessageId}",
         message.To.Address,
-        message.Subject);
+        message.Subject,
+        mimeMessage.MessageId);
 
       return EmailResult.Success();
     }
     catch (Exception ex)
     {
+      // "email_failed" — same observability contract as email_sent above.
       _logger.LogError(
         ex,
-        "Failed to send email to {Recipient} with subject '{Subject}'",
+        "email_failed to={Recipient} subject={Subject} error={Error}",
         message.To.Address,
-        message.Subject);
+        message.Subject,
+        ex.Message);
 
       return EmailResult.Failure(ex.Message);
     }
@@ -83,11 +91,16 @@ public class SmtpEmailService : IEmailService
     }
     catch (Exception ex)
     {
+      // Template-rendering failures also count as a failed send for
+      // observability purposes — same "email_failed" contract, with the
+      // template name for diagnosis.
       _logger.LogError(
         ex,
-        "Failed to send templated email '{TemplateName}' to {Recipient}",
+        "email_failed to={Recipient} subject={Subject} template={TemplateName} error={Error}",
+        recipient.Address,
+        subject,
         templateName,
-        recipient.Address);
+        ex.Message);
 
       return EmailResult.Failure(ex.Message);
     }
@@ -126,7 +139,11 @@ public class SmtpEmailService : IEmailService
     return mimeMessage;
   }
 
-  private async Task SendViaSmtpAsync(
+  /// <summary>
+  /// Performs the actual SMTP transport. Virtual so tests can substitute the
+  /// network call and exercise the send/log pipeline without a real server.
+  /// </summary>
+  protected virtual async Task SendViaSmtpAsync(
     MimeMessage message,
     CancellationToken cancellationToken)
   {
