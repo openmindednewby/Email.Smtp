@@ -123,6 +123,17 @@ public class SmtpEmailService : IEmailService
       mimeMessage.ReplyTo.Add(MailboxAddress.Parse(message.ReplyTo));
     }
 
+    if (message.CustomHeaders is { Count: > 0 })
+    {
+      // Written verbatim — the caller is responsible for validating header
+      // names/values (allowlist + no CRLF). MimeKit also rejects illegal
+      // header names, so a malformed header throws rather than corrupting.
+      foreach (var header in message.CustomHeaders)
+      {
+        mimeMessage.Headers.Add(header.Key, header.Value);
+      }
+    }
+
     var bodyBuilder = new BodyBuilder();
 
     if (!string.IsNullOrEmpty(message.HtmlBody))
