@@ -174,7 +174,7 @@ public class SmtpEmailService : IEmailService
     {
       await client.AuthenticateAsync(
         _options.Username,
-        _options.Password,
+        _options.Password ?? string.Empty,
         cancellationToken);
     }
 

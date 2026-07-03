@@ -3,7 +3,7 @@
   <PropertyGroup>
     <RootNamespace>Email.Smtp</RootNamespace>
     <PackageId>Email.Smtp</PackageId>
-    <Description>SMTP email service using MailKit with code-based HTML templates. Works with Mailpit (dev), Postal (self-hosted), or any SMTP server.</Description>
+    <Description>Transactional email for .NET: SMTP (MailKit) or the Resend HTTP API, selected by config (Email:Provider). Works with Mailpit (dev), self-hosted Maddy/Postal, any SMTP server, or Resend.</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +15,10 @@
     <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <!-- Resend HTTP provider + config-driven provider switch (AddTransactionalEmail). -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
