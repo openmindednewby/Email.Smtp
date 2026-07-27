@@ -22,10 +22,14 @@
     <!-- 1.4.0 adds EmailFailureClassifier: an SMTP 5yz reply (or a provider 4xx
          that is not 408/429) now returns EmailResult with FailureKind=Permanent
          so callers can stop retrying an address that will never accept mail.
-         Requires Email.Abstractions >= 1.3.0. -->
-    <Version>1.4.0</Version>
-    <AssemblyVersion>1.4.0.0</AssemblyVersion>
-    <FileVersion>1.4.0.0</FileVersion>
+         Requires Email.Abstractions >= 1.3.0.
+         1.4.1 is docs-only: records that the Resend path does NOT give
+         SMTP-equivalent bad-recipient detection (Resend 200s an unknown
+         recipient and bounces out of band), so switching Email:Provider to
+         Resend silently loses the permanent-recipient signal. -->
+    <Version>1.4.1</Version>
+    <AssemblyVersion>1.4.1.0</AssemblyVersion>
+    <FileVersion>1.4.1.0</FileVersion>
 
     <!-- NuGet settings -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -48,6 +52,7 @@
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
+
 
 
 

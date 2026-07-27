@@ -51,7 +51,9 @@ public class ResendEmailServiceTests
     FromName = "Dloizides",
   };
 
-  private static ResendEmailService BuildService(CapturingHandler handler)
+  // Typed to HttpMessageHandler, not CapturingHandler, so a handler that THROWS
+  // (no HTTP status at all) can exercise the same construction path.
+  private static ResendEmailService BuildService(HttpMessageHandler handler)
   {
     var httpClient = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
     var renderer = new Mock<IEmailTemplateRenderer>();
@@ -166,6 +168,77 @@ public class ResendEmailServiceTests
     result.IsSuccess.Should().BeFalse();
     result.ErrorMessage.Should().Contain("422");
     result.ErrorMessage.Should().Contain("domain not verified");
+    result.FailureKind.Should().Be(EmailFailureKind.Permanent);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Permanence WIRING, not just the classifier.
+  //
+  // EmailFailureClassifierTests already proves the rule in isolation. These
+  // prove ResendEmailService actually CALLS it, which is the part that can be
+  // silently wrong while every pure-function test stays green. Prod runs the
+  // SMTP provider (Email:Provider), so this HTTP branch never executes live —
+  // these stubbed-transport tests are the only thing standing behind it.
+  //
+  // Remember the inversion: for HTTP, 4xx is the PERMANENT class. That is the
+  // OPPOSITE of SMTP, where 5yz is permanent.
+  // ---------------------------------------------------------------------------
+
+  [Theory]
+  [InlineData(HttpStatusCode.BadRequest)]          // 400
+  [InlineData(HttpStatusCode.Unauthorized)]        // 401 — a bad API key will not fix itself
+  [InlineData(HttpStatusCode.Forbidden)]           // 403
+  [InlineData(HttpStatusCode.NotFound)]            // 404
+  [InlineData(HttpStatusCode.UnprocessableEntity)] // 422
+  public async Task SendAsync_OnProviderClientError_IsPermanent(HttpStatusCode status)
+  {
+    var handler = new CapturingHandler(status, "{\"message\":\"nope\"}");
+    var service = BuildService(handler);
+
+    var result = await service.SendAsync(SampleMessage());
+
+    result.IsSuccess.Should().BeFalse();
+    result.FailureKind.Should().Be(EmailFailureKind.Permanent);
+    result.IsPermanentFailure.Should().BeTrue();
+  }
+
+  [Theory]
+  [InlineData(HttpStatusCode.RequestTimeout)]      // 408 — 4xx but retryable
+  [InlineData((HttpStatusCode)429)]                // rate limit: permanent here would DROP mail in a burst
+  [InlineData(HttpStatusCode.InternalServerError)] // 500
+  [InlineData(HttpStatusCode.BadGateway)]          // 502 — transient over HTTP, permanent over SMTP
+  [InlineData(HttpStatusCode.ServiceUnavailable)]  // 503
+  [InlineData(HttpStatusCode.GatewayTimeout)]      // 504
+  public async Task SendAsync_OnRetryableOrProviderOutage_IsTransient(HttpStatusCode status)
+  {
+    var handler = new CapturingHandler(status, "{\"message\":\"later\"}");
+    var service = BuildService(handler);
+
+    var result = await service.SendAsync(SampleMessage());
+
+    result.IsSuccess.Should().BeFalse();
+    result.FailureKind.Should().Be(EmailFailureKind.Transient);
+    result.IsPermanentFailure.Should().BeFalse();
+  }
+
+  [Fact]
+  public async Task SendAsync_WhenTransportThrows_IsTransient()
+  {
+    // No HTTP status at all => no verdict from the provider => must stay
+    // retryable, or a blip in our own egress would look like a bad address.
+    var service = BuildService(new ThrowingHandler());
+
+    var result = await service.SendAsync(SampleMessage());
+
+    result.IsSuccess.Should().BeFalse();
+    result.FailureKind.Should().Be(EmailFailureKind.Transient);
+  }
+
+  private sealed class ThrowingHandler : HttpMessageHandler
+  {
+    protected override Task<HttpResponseMessage> SendAsync(
+      HttpRequestMessage request, CancellationToken cancellationToken)
+      => throw new HttpRequestException("connection reset");
   }
 
   [Fact]

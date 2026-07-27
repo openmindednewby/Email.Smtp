@@ -92,6 +92,23 @@ public static class EmailFailureClassifier
   /// request, excluding the retryable 408/429; otherwise
   /// <see cref="EmailFailureKind.Transient"/>.
   /// </returns>
+  /// <remarks>
+  /// <para>
+  /// ⚠️ <b>This does NOT give you SMTP-equivalent bad-recipient detection.</b>
+  /// Resend accepts a syntactically valid but non-existent recipient with
+  /// <c>200</c> and reports the bounce LATER, out of band (webhook) — so a
+  /// permanent recipient failure never reaches this method. What a 4xx here
+  /// actually means is an error on OUR side: bad API key (401), unverified
+  /// sending domain (403/422), malformed payload (400).
+  /// </para>
+  /// <para>
+  /// Consequence for anyone switching <c>Email:Provider</c> from Smtp to
+  /// Resend: a mistyped recipient that today yields SMTP <c>5.1.1</c> →
+  /// <see cref="EmailFailureKind.Permanent"/> → HTTP 422 at the call-site will
+  /// instead look like a SUCCESS. Handling Resend bounces needs a webhook
+  /// receiver, which this package does not provide.
+  /// </para>
+  /// </remarks>
   public static EmailFailureKind ClassifyProviderHttpStatus(int statusCode)
   {
     // 429 rate-limit and 408 timeout are 4xx but explicitly retryable — treating
