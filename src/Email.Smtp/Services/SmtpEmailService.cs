@@ -53,15 +53,26 @@ public class SmtpEmailService : IEmailService
     }
     catch (Exception ex)
     {
+      // An SMTP 5yz reply means this message can never be delivered as
+      // addressed, so the caller must not requeue it. Without this the two
+      // cases are indistinguishable to callers, and an HTTP call-site ends up
+      // reporting "user does not exist" as 502 Bad Gateway — which reads as an
+      // infrastructure outage and, under a standard resilience handler, becomes
+      // a retry storm against an address that will never accept mail.
+      var failureKind = EmailFailureClassifier.Classify(ex);
+
       // "email_failed" — same observability contract as email_sent above.
+      // failureKind is appended rather than inserted: the leading tokens are a
+      // greppable cross-producer contract (LogQL |= "email_failed").
       _logger.LogError(
         ex,
-        "email_failed to={Recipient} subject={Subject} error={Error}",
+        "email_failed to={Recipient} subject={Subject} error={Error} failureKind={FailureKind}",
         message.To.Address,
         message.Subject,
-        ex.Message);
+        ex.Message,
+        failureKind);
 
-      return EmailResult.Failure(ex.Message);
+      return EmailResult.Failure(ex.Message, failureKind);
     }
   }
 

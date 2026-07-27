@@ -133,9 +133,18 @@ public class SmtpEmailServiceEventContractTests
     var failedEvent = logger.Events.Should()
       .ContainSingle(e => e.Template.StartsWith(EmailFailedToken)).Subject;
     failedEvent.Level.Should().Be(LogLevel.Error);
-    failedEvent.Template.Should().Be("email_failed to={Recipient} subject={Subject} error={Error}");
+    // failureKind was APPENDED in 1.4.0. The cross-producer contract is the
+    // leading token (asserted by StartsWith above, and by LogQL |= "email_failed"),
+    // so adding a trailing field is additive, not a break.
+    failedEvent.Template.Should().Be(
+      "email_failed to={Recipient} subject={Subject} error={Error} failureKind={FailureKind}");
     failedEvent.Properties.Should().Contain(p =>
       p.Key == "Recipient" && (string?)p.Value == "recipient@example.com");
+    // A dead TCP connection is no verdict from the server, so it must stay
+    // retryable -- concluding "bad address" here would drop deliverable mail.
+    failedEvent.Properties.Should().Contain(p =>
+      p.Key == "FailureKind" && (EmailFailureKind?)p.Value == EmailFailureKind.Transient);
+    result.FailureKind.Should().Be(EmailFailureKind.Transient);
   }
 
   [Fact]

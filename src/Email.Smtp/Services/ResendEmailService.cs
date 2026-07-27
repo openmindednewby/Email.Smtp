@@ -60,16 +60,22 @@ public class ResendEmailService : IEmailService
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var error = $"Resend API returned {(int)response.StatusCode}: {body}";
 
+        // NOTE the inversion vs SMTP: here 4xx is the PERMANENT class (bad
+        // request) and 5xx is transient (Resend's outage). See
+        // EmailFailureClassifier for why the two providers read opposite.
+        var failureKind = EmailFailureClassifier.ClassifyProviderHttpStatus((int)response.StatusCode);
+
         // "email_failed" is the cross-producer observability contract shared with
         // SmtpEmailService — a stable, greppable token queryable in Loki/Grafana
         // (LogQL: |= "email_failed"). Do not reword the leading token.
         _logger.LogError(
-          "email_failed to={Recipient} subject={Subject} error={Error}",
+          "email_failed to={Recipient} subject={Subject} error={Error} failureKind={FailureKind}",
           message.To.Address,
           message.Subject,
-          error);
+          error,
+          failureKind);
 
-        return EmailResult.Failure(error);
+        return EmailResult.Failure(error, failureKind);
       }
 
       var messageId = await ReadMessageIdAsync(response, cancellationToken);
