@@ -27,9 +27,9 @@
          SMTP-equivalent bad-recipient detection (Resend 200s an unknown
          recipient and bounces out of band), so switching Email:Provider to
          Resend silently loses the permanent-recipient signal. -->
-    <Version>1.4.1</Version>
-    <AssemblyVersion>1.4.1.0</AssemblyVersion>
-    <FileVersion>1.4.1.0</FileVersion>
+    <Version>1.5.0</Version>
+    <AssemblyVersion>1.5.0.0</AssemblyVersion>
+    <FileVersion>1.5.0.0</FileVersion>
 
     <!-- NuGet settings -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
