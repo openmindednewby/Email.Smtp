@@ -11,7 +11,7 @@ namespace Email.Smtp.Rendering;
 /// </summary>
 public class EmbeddedResourceTemplateRenderer : IEmailTemplateRenderer
 {
-  private static readonly ConcurrentDictionary<string, string> TemplateCache = new();
+  private readonly ConcurrentDictionary<string, string> _templateCache = new();
   private readonly ILogger<EmbeddedResourceTemplateRenderer> _logger;
 
   public EmbeddedResourceTemplateRenderer(
@@ -26,7 +26,7 @@ public class EmbeddedResourceTemplateRenderer : IEmailTemplateRenderer
     Dictionary<string, string> data,
     CancellationToken cancellationToken = default)
   {
-    var template = TemplateCache.GetOrAdd(templateName, LoadTemplate);
+    var template = _templateCache.GetOrAdd(templateName, LoadTemplate);
 
     var rendered = data.Aggregate(
       template,
